@@ -45,9 +45,9 @@ type (
 		mux     *sync.RWMutex
 		actChan chan *listAct
 		// curOffset            *uint32 //current offset value of scrollbar
-		curStartPoint        *uint32 //the index of first row showed
-		curShowedLines       *uint32
-		multiSelection       bool
+		curStartPoint  *uint32 //the index of first row showed
+		curShowedLines *uint32
+		//multiSelection       bool
 		curSelections        []bool
 		headerLook, bodyLook *Look
 		selectionHandler     OnSelectionHandler
@@ -55,7 +55,7 @@ type (
 	}
 )
 
-func WithMultiSelections() Option      { return func(list *DVList) { list.multiSelection = true } }
+// func WithMultiSelections() Option      { return func(list *DVList) { list.multiSelection = true } }
 func WithHeaderLook(look *Look) Option { return func(list *DVList) { list.headerLook = look } }
 func WithBodyLook(look *Look) Option   { return func(list *DVList) { list.bodyLook = look } }
 func WithSelectionHandler(h OnSelectionHandler) Option {
@@ -81,9 +81,11 @@ func NewDVList(data Data, options ...Option) (*DVList, error) {
 		bodyLook:       defaultBodyLook(),
 	}
 	atomic.StoreUint32(list.curStartPoint, 0)
-	for i := 0; i < data.Len(); i++ {
-		list.curSelections = append(list.curSelections, false)
-	}
+	list.curSelections = make([]bool, list.data.Len())
+
+	//for i := 0; i < data.Len(); i++ {
+	//	list.curSelections = append(list.curSelections, false)
+	//}
 	for _, o := range options {
 		o(list)
 	}
@@ -108,33 +110,32 @@ func (list *DVList) onTapHeader(col int, asc bool) {
 	}
 }
 
-func (list *DVList) updateSelection(row int, selected bool) {
-	list.mux.Lock()
-	if row < 0 || row >= len(list.curSelections) {
-		list.mux.Unlock()
-		return
-	}
+func (list *DVList) updateSelection(row int, selected bool) { //todo slowly
+	//list.mux.Lock()
+	//if row < 0 || row >= len(list.curSelections) {
+	//	//list.mux.Unlock()
+	//	return
+	//}
+	list.curSelections = make([]bool, list.data.Len())
 	list.curSelections[row] = selected
-	if !list.multiSelection {
-	L1:
-		// single selection
-		for i, b := range list.curSelections {
-			if b {
-				if i != row {
-					list.curSelections[i] = false
-					// list.SetSelection(i, false)
-					// log.Printf("set row %d off", i)
-
-					break L1
-				}
-			}
-		}
-	}
-	list.mux.Unlock()
+	//if !list.multiSelection {
+	//L1:
+	//	// single selection
+	//	for i, b := range list.curSelections {
+	//		if b {
+	//			if i != row {
+	//				list.curSelections[i] = false
+	//				// list.SetSelection(i, false)
+	//				// log.Printf("set row %d off", i)
+	//
+	//				break L1
+	//			}
+	//		}
+	//	}
+	//}
+	//list.mux.Unlock()
 	select {
-	case list.actChan <- &listAct{
-		act: actSetSelection,
-	}:
+	case list.actChan <- &listAct{act: actSetSelection}:
 		list.Refresh()
 	default:
 		return
@@ -149,7 +150,6 @@ func (list *DVList) onSelectRow(row int, selected bool) {
 		}
 	}()
 	list.updateSelection(row, selected)
-
 }
 
 type rowSelectionArgs struct {
@@ -158,30 +158,30 @@ type rowSelectionArgs struct {
 }
 
 func (list *DVList) SetSelection(rowid int, selected bool) {
-	// list.onSelectRow(rowid, selected)
+	list.onSelectRow(rowid, selected)
 	list.updateSelection(rowid, selected)
 
 }
 
-func (list *DVList) CurrentSelections() (selections []bool) {
-	list.mux.RLock()
-	defer list.mux.RUnlock()
-	for _, b := range list.curSelections {
-		selections = append(selections, b)
-	}
-	return
-}
+//func (list *DVList) CurrentSelections() (selections []bool) {
+//	list.mux.RLock()
+//	defer list.mux.RUnlock()
+//	for _, b := range list.curSelections {
+//		selections = append(selections, b)
+//	}
+//	return
+//}
 
-func (list *DVList) FirstSelected() int {
-	list.mux.RLock()
-	defer list.mux.RUnlock()
-	for i, b := range list.curSelections {
-		if b {
-			return i
-		}
-	}
-	return -1
-}
+//func (list *DVList) FirstSelected() int {
+//	list.mux.RLock()
+//	defer list.mux.RUnlock()
+//	for i, b := range list.curSelections {
+//		if b {
+//			return i
+//		}
+//	}
+//	return -1
+//}
 
 func (list *DVList) onScroll(offset uint32) {
 	// log.Printf("dvlist scroll to offset %d", offset)
@@ -255,10 +255,12 @@ func (list *DVList) ScrollTo(id int) {
 func (list *DVList) SetData(d Data) {
 	list.mux.Lock()
 	list.data = d
-	list.curSelections = []bool{}
-	for i := 0; i < d.Len(); i++ {
-		list.curSelections = append(list.curSelections, false)
-	}
+	list.curSelections = make([]bool, list.data.Len())
+	//
+	//list.curSelections = []bool{}
+	//for i := 0; i < d.Len(); i++ {
+	//	list.curSelections = append(list.curSelections, false)
+	//}
 	list.mux.Unlock()
 	select {
 	case list.actChan <- &listAct{
@@ -441,9 +443,7 @@ func (dlr *dvListRender) layout(layoutsize fyne.Size, mode int) {
 
 }
 
-func (dlr *dvListRender) Layout(layoutsize fyne.Size) {
-	dlr.layout(layoutsize, listLayoutLazy)
-}
+func (dlr *dvListRender) Layout(layoutsize fyne.Size) { dlr.layout(layoutsize, listLayoutLazy) }
 
 func (dlr *dvListRender) MinSize() fyne.Size {
 	dlr.list.mux.RLock()

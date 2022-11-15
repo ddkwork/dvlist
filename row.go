@@ -38,51 +38,49 @@ func defaultHeaderLook() *Look {
 	}
 }
 
-type rowActType int
-
 const (
 	rowActSetSelection rowActType = iota
 	rowActHeaderSetSort
 	rowActReLayout
 )
 
-type rowAct struct {
-	act rowActType
-	val interface{}
-}
-
 const (
 	headerSortNone uint32 = iota
 	headerSortAscend
 	headerSortDescend
 )
-
-type OnSelectionHandler func(id int, selected bool)
-type DoubleClickHandler func(id int)
-type headerOnTapHandler func(colid int, ascend bool)
-type notifyListDraghandler func([]float32)
-
-type listRow struct {
-	widget.BaseWidget
-	rowID                int //this should be the index in the data
-	fieldList            []string
-	selected             *uint32 // non-zero means selected
-	header               bool
-	actChan              chan *rowAct
-	rightPadding         float32
-	selectHandler        OnSelectionHandler
-	headerTapHandler     headerOnTapHandler
-	headerDragHandler    notifyListDraghandler
-	headerSortDirections []*uint32 // non-zero means ascend
-	arrangements         []float32 // percentage width for each field, sum<=MaxFields0
-	mux                  *sync.RWMutex
-	look                 *Look
-	doubleClickHandler   DoubleClickHandler
-}
-
 const (
 	rowActChanDepth = 16
 	MaxColumns      = 100
+)
+
+type (
+	rowActType            int
+	OnSelectionHandler    func(id int, selected bool)
+	DoubleClickHandler    func(id int)
+	headerOnTapHandler    func(colid int, ascend bool)
+	notifyListDraghandler func([]float32)
+	rowAct                struct {
+		act rowActType
+		val interface{}
+	}
+	listRow struct {
+		widget.BaseWidget
+		rowID                int //this should be the index in the data
+		fieldList            []string
+		selected             *uint32 // non-zero means selected
+		header               bool
+		actChan              chan *rowAct
+		rightPadding         float32
+		selectHandler        OnSelectionHandler
+		headerTapHandler     headerOnTapHandler
+		headerDragHandler    notifyListDraghandler
+		headerSortDirections []*uint32 // non-zero means ascend
+		arrangements         []float32 // percentage width for each field, sum<=MaxFields0
+		mux                  *sync.RWMutex
+		look                 *Look
+		doubleClickHandler   DoubleClickHandler
+	}
 )
 
 func NewListHeaderRow(list []string, padding float32, handler headerOnTapHandler, dh notifyListDraghandler, arr []float32, look *Look) *listRow {
@@ -157,7 +155,6 @@ func (row *listRow) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (row *listRow) SetSelection(selected bool, admin bool) {
-
 	if selected == (atomic.LoadUint32(row.selected) == 1) {
 		//same state, no need update
 		// log.Printf("row %d set selection done,no change", row.rowID)
@@ -249,7 +246,6 @@ func (row *listRow) dragHandler(metadata interface{}, evt *fyne.DragEvent) {
 	} else {
 		// log.Printf("drag skipped,%v", err)
 	}
-
 }
 
 func (row *listRow) doubleTapHandler(metadata interface{}, evt *fyne.PointEvent) {
@@ -272,7 +268,6 @@ func (row *listRow) tapHandler(metadata interface{}, evt *fyne.PointEvent) {
 		currDidirection := atomic.LoadUint32(row.headerSortDirections[pos])
 		newDirection := headerSortAscend
 		if currDidirection == headerSortNone {
-
 			// atomic.StoreUint32(row.headerSortDirections[pos], headerSortAscend)
 			// if row.headerTapHandler != nil {
 			// 	row.headerTapHandler(pos, true)
@@ -361,9 +356,7 @@ func newListRowRender(row *listRow) *listRowRender {
 func (lrr *listRowRender) BackgroundColor() color.Color {
 	return color.Transparent
 }
-func (lrr *listRowRender) Destroy() {
-
-}
+func (lrr *listRowRender) Destroy() {}
 
 const (
 	headerSepWidth         = 2
@@ -379,7 +372,7 @@ func (lrr *listRowRender) Layout(layoutsize fyne.Size) {
 	lrr.row.mux.RLock()
 	defer lrr.row.mux.RUnlock()
 	var startx float32 = 0
-	for i, label := range lrr.labelList {
+	for i, label := range lrr.labelList { //todo slow need a select id or use list container
 		fieldWidth := (lrr.row.arrangements[i] * newsize.Width) / MaxColumns
 		label.Resize(fyne.NewSize(fieldWidth-2*sepGapWidth-headerSepWidth, newsize.Height))
 		label.Move(fyne.NewPos(startx+sepGapWidth, 0))
@@ -444,7 +437,6 @@ func (lrr *listRowRender) Refresh() {
 			lrr.row.mux.Unlock()
 		case rowActReLayout:
 			lrr.Layout(lrr.row.Size())
-
 		}
 	default:
 		return

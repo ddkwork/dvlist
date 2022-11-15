@@ -23,7 +23,7 @@ func fmtRow(row packets.Row) []string {
 
 func mockRows() [][]string {
 	rows := make([][]string, 0)
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 100; i++ {
 		row := fmtRow(packets.Row{
 			Method:        http.MethodConnect,
 			Scheme:        "wss",
